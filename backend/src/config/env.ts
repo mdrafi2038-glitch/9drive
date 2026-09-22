@@ -5,7 +5,8 @@ dotenv.config()
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
-  APP_PORT: z.coerce.number().default(4000),
+  PORT: z.coerce.number().optional(),
+  APP_PORT: z.coerce.number().optional(),
   FRONTEND_URL: z.string().url(),
   JWT_ACCESS_SECRET: z.string().min(32),
   TOKEN_ENCRYPTION_KEY: z.string().min(32),
@@ -15,4 +16,9 @@ const envSchema = z.object({
   RECAPTCHA_SECRET_KEY: z.string().optional(),
 })
 
-export const env = envSchema.parse(process.env)
+const parsed = envSchema.parse(process.env)
+
+export const env = {
+  ...parsed,
+  APP_PORT: parsed.PORT ?? parsed.APP_PORT ?? 4000,
+}
