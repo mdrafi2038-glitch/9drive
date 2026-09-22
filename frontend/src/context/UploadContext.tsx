@@ -71,27 +71,43 @@ export function UploadProvider({ children }: { children: ReactNode }) {
       const chunk = file.slice(startOffset, endOffset)
 
       // We use raw fetch with authorization header for binary stream upload
-      const response = await fetch(`${API_URL}/uploads/resumable/chunk/${sessionId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-          'Content-Range': `bytes ${startOffset}-${endOffset - 1}/${file.size}`,
-          'Content-Length': String(chunk.size)
-        },
-        body: chunk
-      })
-
-      if (!response.ok) {
-        throw new Error('Chunk upload failed')
+      let attempt = 0
+      let response: Response | null = null
+      let resData: { status: string; offset?: string; message?: string } | null = null
+      while (attempt < 3) {
+        try {
+          response = await fetch(`${API_URL}/uploads/resumable/chunk/${sessionId}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${getAccessToken()}`,
+              'Content-Range': `bytes ${startOffset}-${endOffset - 1}/${file.size}`,
+              'Content-Type': 'application/octet-stream'
+            },
+            body: chunk
+          })
+          resData = await response.json().catch(() => null) as { status: string; offset?: string; message?: string } | null
+          if (response.ok) break
+          if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) break
+        } catch (error) {
+          if (attempt >= 2) throw error
+        }
+        attempt += 1
+        await new Promise(resolve => setTimeout(resolve, 700 * attempt))
       }
 
-      const resData = await response.json() as { status: string; offset?: string }
+      if (!response?.ok || !resData) {
+        throw new Error(resData?.message || `Chunk upload failed${response ? ` (${response.status})` : ''}`)
+      }
       if (resData.status === 'completed') {
         onProgress(100)
         break
       }
 
-      startOffset = Number(resData.offset)
+      const nextOffset = Number(resData.offset)
+      if (!Number.isFinite(nextOffset) || nextOffset <= startOffset || nextOffset > file.size) {
+        throw new Error('Invalid upload offset returned by server')
+      }
+      startOffset = nextOffset
       const percent = Math.min(99, Math.round((startOffset / file.size) * 100))
       onProgress(percent)
     }
