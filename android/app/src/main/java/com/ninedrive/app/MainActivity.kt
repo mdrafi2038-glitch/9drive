@@ -3,16 +3,15 @@ package com.ninedrive.app
 import android.annotation.SuppressLint
 import android.graphics.Color
 import android.os.Bundle
-import android.view.View
 import android.view.Window
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.ViewCompat
 import androidx.core.view.updatePadding
 
 class MainActivity : AppCompatActivity() {
@@ -24,14 +23,20 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         val window: Window = window
-        WindowCompat.setDecorFitsSystemWindows(window, true)
-        window.statusBarColor = Color.WHITE
-        window.navigationBarColor = Color.WHITE
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = true
+
+        // Android 15+ uses edge-to-edge for targetSdk 35. Handle the
+        // status/navigation bar insets explicitly so the web app header
+        // never sits underneath the system status bar.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = false
+        insetsController.isAppearanceLightNavigationBars = false
 
         webView = WebView(this)
-        webView.setBackgroundColor(Color.WHITE)
+        webView.setBackgroundColor(Color.TRANSPARENT)
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
@@ -48,7 +53,12 @@ class MainActivity : AppCompatActivity() {
 
         ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.updatePadding(top = bars.top, bottom = bars.bottom)
+            view.updatePadding(
+                top = bars.top,
+                bottom = bars.bottom,
+                left = bars.left,
+                right = bars.right
+            )
             insets
         }
 
@@ -56,8 +66,13 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = WebViewClient()
 
         setContentView(webView)
-        if (savedInstanceState == null) webView.loadUrl(startUrl)
-        else webView.restoreState(savedInstanceState)
+        ViewCompat.requestApplyInsets(webView)
+
+        if (savedInstanceState == null) {
+            webView.loadUrl(startUrl)
+        } else {
+            webView.restoreState(savedInstanceState)
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
