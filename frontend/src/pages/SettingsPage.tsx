@@ -395,6 +395,23 @@ export function SettingsPage() {
             </div>
           </Card>
 
+          <Card className="overflow-hidden border-blue-100 bg-gradient-to-r from-blue-50/80 via-white to-indigo-50/70 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+                  <Cloud className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-[15px] font-extrabold text-slate-950">Your Google accounts stay saved</h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">Connect Gmail accounts from any of your phones. They are saved to your 9Drive account, so the same connected drives appear on every phone where you sign in.</p>
+                </div>
+              </div>
+              <div className="shrink-0 rounded-full bg-white px-3 py-1.5 text-[11px] font-extrabold text-blue-700 shadow-sm border border-blue-100">
+                {accounts.filter((account) => account.provider === 'google_drive').length} Google account{accounts.filter((account) => account.provider === 'google_drive').length === 1 ? '' : 's'} saved
+              </div>
+            </div>
+          </Card>
+
           <Card className="p-4">
             <h2 className="text-[16px] font-bold">Connected Storage Accounts</h2>
             <div className="mt-3.5 grid gap-3">
