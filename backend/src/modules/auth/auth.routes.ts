@@ -74,7 +74,9 @@ authRouter.get('/google/url', async (_req, res, next) => {
     const client = createOAuthClient(config)
     const url = client.generateAuthUrl({
       access_type: 'offline',
-      prompt: 'consent',
+      // Force Google's account chooser so users can pick any Google account
+      // already signed in on the device/browser without entering a Gmail password.
+      prompt: 'select_account consent',
       include_granted_scopes: true,
       scope: config.scopes as string[],
       state,
