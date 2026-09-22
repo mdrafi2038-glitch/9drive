@@ -176,8 +176,12 @@ connectedAccountRouter.get('/google/connect', requireAuth, async (req: AuthReque
 
 connectedAccountRouter.get('/google/callback', async (req, res, next) => {
   try {
-    const query = z.object({ code: z.string(), state: z.string() }).parse(req.query)
+    const query = z.object({ code: z.string().optional(), state: z.string(), error: z.string().optional() }).parse(req.query)
     const oauthState = await prisma.oauthState.findUniqueOrThrow({ where: { stateHash: hashToken(query.state) }, include: { providerConfig: true } })
+    const errorRedirect = oauthState.flow === 'login'
+      ? `${env.FRONTEND_URL}/google-auth?status=error`
+      : `${env.FRONTEND_URL}/google-connected?status=error`
+    if (query.error || !query.code) return res.redirect(errorRedirect)
     if (oauthState.usedAt || oauthState.expiresAt < new Date()) return res.status(400).json({ code: 'GOOGLE_OAUTH_STATE_INVALID', message: 'OAuth state expired.' })
     const client = createOAuthClient(oauthState.providerConfig)
     const tokenResult = await client.getToken(query.code)
@@ -276,6 +280,11 @@ connectedAccountRouter.get('/google/callback', async (req, res, next) => {
     return res.redirect(`${env.FRONTEND_URL}/google-connected?status=success`)
   } catch (error) {
     console.error('Google OAuth callback failed:', error)
+    const state = typeof req.query.state === 'string' ? req.query.state : undefined
+    if (state) {
+      const oauthState = await prisma.oauthState.findUnique({ where: { stateHash: hashToken(state) } }).catch(() => null)
+      if (oauthState?.flow === 'login') return res.redirect(`${env.FRONTEND_URL}/google-auth?status=error`)
+    }
     return res.redirect(`${env.FRONTEND_URL}/google-connected?status=error`)
   }
 })
